@@ -6,48 +6,58 @@ import logging
 import certifi
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+from dotenv import load_dotenv
+import os
 
 # ------------------ CONFIG ------------------
-ALPHA_KEY = "4ZLQ7RFHAM127FGG"   # Replace with your Alpha Vantage key
+load_dotenv()
+
+ALPHA_KEY = os.getenv("ALPHA_KEY")
 MONGO_URI = "mongodb+srv://Cluster25172:pass123@cluster25172.bj5nf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster25172"
 
 DB_NAME = "companyDB"
-COLLECTION_NAME = "linkedin_companies"
+COLLECTION_NAME = "company_info"
 OUT_CSV = "company_financials.csv"
 # ---------------------------------------------
 
-# Setup logging
+# ------------------ LOGGING ------------------
+LOG_DIR = os.path.join("src", "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+LOG_FILE = os.path.join(LOG_DIR, "scraper.log")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
     handlers=[
-        logging.FileHandler("scraper.log"),
+        logging.FileHandler(LOG_FILE),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
+# ---------------------------------------------
 
 # ------------------ MONGO FETCH ------------------
 def fetch_companies():
-    """Fetch company names + LinkedIn industries from MongoDB"""
+    """Fetch companies where companyFinance field does NOT exist"""
     try:
         client = MongoClient(MONGO_URI, server_api=ServerApi('1'), tlsCAFile=certifi.where())
         db = client[DB_NAME]
         collection = db[COLLECTION_NAME]
 
         companies = []
-        for doc in collection.find({}, {"currentPosition.companyName": 1, "industry": 1}):
-            current_positions = doc.get("currentPosition", [])
-            if current_positions and isinstance(current_positions, list):
-                company_name = current_positions[0].get("companyName")
-                linkedin_industry = doc.get("industry")  # LinkedIn's industry field
-                if company_name:
-                    companies.append({
-                        "name": company_name,
-                        "linkedinIndustry": linkedin_industry
-                    })
+        for doc in collection.find({}, {"companyId": 1, "results.companyName": 1, "companyFinance": 1}):
+            company_id = str(doc.get("companyId"))  # keep as string
+            results = doc.get("results", [])
+            company_name = results[0].get("companyName") if results else None
 
-        logger.info(f"Fetched {len(companies)} companies from MongoDB [{DB_NAME}.{COLLECTION_NAME}]")
+            # ✅ Only process if companyFinance does not exist
+            if company_name and not doc.get("companyFinance"):
+                companies.append({
+                    "companyId": company_id,
+                    "name": company_name
+                })
+
+        logger.info(f"Fetched {len(companies)} companies needing finance enrichment")
         return companies
     except Exception as e:
         logger.error(f"MongoDB fetch failed: {e}")
@@ -125,33 +135,40 @@ def main(companies, out_csv=OUT_CSV, sleep_between=1.0):
 
     rows = []
     for comp in companies:
+        company_id = comp["companyId"]
         name = comp["name"]
-        linkedin_industry = comp.get("linkedinIndustry")
 
-        logger.info(f"🔎 Processing company: {name}")
+        logger.info(f"🔎 Processing company: {name} (ID={company_id})")
 
         ticker = search_ticker_alpha(name)
         if not ticker:
-            rows.append({"company": name, "ticker": None, "error": "No ticker found", "linkedinIndustry": linkedin_industry})
+            record = {
+                "ticker": None,
+                "status": "No ticker found"
+            }
+            rows.append({"companyId": company_id, "company": name, **record})
+            result = collection.update_one({"companyId": company_id}, {"$set": {"companyFinance": record}})
+            logger.info(f"⚠️ Updated {name} (ID={company_id}) → matched={result.matched_count}, modified={result.modified_count}")
             continue
 
         data = fetch_yfinance_data(ticker)
         if not data:
-            rows.append({"company": name, "ticker": ticker, "error": "yfinance fetch failed", "linkedinIndustry": linkedin_industry})
+            record = {
+                "ticker": ticker,
+                "status": "yfinance fetch failed"
+            }
+            rows.append({"companyId": company_id, "company": name, **record})
+            result = collection.update_one({"companyId": company_id}, {"$set": {"companyFinance": record}})
+            logger.info(f"⚠️ Updated {name} (ID={company_id}) → matched={result.matched_count}, modified={result.modified_count}")
             continue
 
-        data["company"] = name
-        data["linkedinIndustry"] = linkedin_industry  # merge LinkedIn industry fallback
-        rows.append(data)
+        data["status"] = "success"
+        rows.append({"companyId": company_id, "company": name, **data})
 
-        # update MongoDB with financials
-        collection.update_one(
-            {"currentPosition.companyName": name},
-            {"$set": {"financials": data}}
-        )
+        result = collection.update_one({"companyId": company_id}, {"$set": {"companyFinance": data}})
+        logger.info(f"✅ Updated {name} (ID={company_id}) with financials → matched={result.matched_count}, modified={result.modified_count}")
 
-        logger.info(f"✅ Completed {name} ({ticker})")
-        time.sleep(sleep_between)  # polite delay
+        time.sleep(sleep_between)
 
     df = pd.DataFrame(rows)
     df.to_csv(out_csv, index=False)
@@ -166,3 +183,8 @@ if __name__ == "__main__":
     else:
         df = main(companies)
         logger.info(f"Run completed. Preview:\n{df.head()}")
+
+
+
+        
+

@@ -1,8 +1,27 @@
 import os
+import time
+import logging
 from apify_client import ApifyClient
 from pymongo import MongoClient
-import time
 from dotenv import load_dotenv
+
+# -----------------------------
+# Setup logging (save in src/logs/scraper.log)
+# -----------------------------
+LOG_DIR = os.path.join("src", "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+LOG_FILE = os.path.join(LOG_DIR, "ApifyCompanyScraper.log")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s",
+    handlers=[
+        logging.FileHandler(LOG_FILE),   # save logs here
+        logging.StreamHandler()          # also print to console
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # -----------------------------
 # MongoDB Setup
@@ -17,6 +36,7 @@ company_info_collection = db["company_info"]  # new collection for storing resul
 # -----------------------------
 # Apify Setup
 # -----------------------------
+load_dotenv()
 API_TOKEN = os.getenv("APIFY_API_TOKEN")
 
 client = ApifyClient(API_TOKEN)
@@ -36,10 +56,10 @@ for doc in collection.find({}, {"currentPosition": 1, "_id": 0}):
             # Check if company already processed
             exists = company_info_collection.find_one({"companyId": company_id})
             if exists:
-                print(f"⏩ Skipping companyId {company_id}, already exists in company_info.")
+                logger.info(f"⏩ Skipping companyId {company_id}, already exists in company_info.")
                 continue
 
-            print(f"\n🔄 Processing companyId: {company_id}, URL: {url}")
+            logger.info(f"🔄 Processing companyId: {company_id}, URL: {url}")
 
             # Run Apify actor
             run_input = {"profileUrls": [url]}
@@ -52,7 +72,7 @@ for doc in collection.find({}, {"currentPosition": 1, "_id": 0}):
 
             if results:
                 for item in results:
-                    print("📌 Output:", item)
+                    logger.debug(f"📌 Output: {item}")  # detailed output in debug mode
 
                 # Save results with companyId
                 company_info_collection.insert_one({
@@ -62,13 +82,9 @@ for doc in collection.find({}, {"currentPosition": 1, "_id": 0}):
                     "apifyRunId": run["id"],  # trace run
                     "status": "succeeded"
                 })
-                print(f"✅ Saved results for companyId {company_id} into company_info.")
+                logger.info(f"✅ Saved results for companyId {company_id} into company_info.")
             else:
-                print(f"⚠️ No results returned for companyId {company_id}")
+                logger.warning(f"⚠️ No results returned for companyId {company_id}")
 
             # Delay between cycles
             time.sleep(5)
-
-
-
-

@@ -37,7 +37,7 @@ company_info_collection = db["company_info"]  # new collection for storing resul
 # Apify Setup
 # -----------------------------
 load_dotenv()
-API_TOKEN = os.getenv("APIFY_API_TOKEN")
+API_TOKEN = os.getenv("APIFY_API_TOKEN2")
 
 client = ApifyClient(API_TOKEN)
 

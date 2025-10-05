@@ -6,11 +6,14 @@ from dotenv import load_dotenv
 # ------------------------
 # MongoDB connection
 # ------------------------
+
+
 mongo_client = MongoClient("mongodb+srv://Cluster25172:pass123@cluster25172.bj5nf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster25172")
 db = mongo_client["companyDB"]              # your database
 collection = db["linkedin_companies"]       # your collection
 
-API_TOKEN = os.getenv("APIFY_API_TOKEN")
+load_dotenv()
+API_TOKEN = os.getenv("APIFY_API_TOKEN2")
 # ------------------------
 # Apify connection
 # ------------------------
@@ -18,14 +21,14 @@ apify_client = ApifyClient(API_TOKEN)
 
 # Prepare the Actor input
 run_input = {
-    "currentJobTitles": ["CEO", "CTO", "CFO"],
-    "industryIds": ["4"],
+    "currentJobTitles": ["CEO", "COO", "CFO", "CTO", "CIO", "CMO", "CRO", "CHRO", "CPO", "CSO", "CCO", "CLO", "CISO", "CDO", "CAO", "CKO", "CINO", "CXO", "CCXO", "CDAO", "CGO", "CBO", "CSRO", "CDAO", "CAIO", "CIO (Impact)", "CSO (Sustainability)", "CLO (Legal)", "CCO (Compliance)", "CCO (Customer)", "CCO (Communications)"],
+    "industryIds": ["41"],
     "locations": ["United States"],
-    "maxItems": 20,
+    "maxItems": 100,
     "profileScraperMode": "Full",
     "searchQuery": "Banking",
     "seniorityLevelIds": ["310"],
-    "startPage": 1
+    "startPage": 6
 }
 
 # Run the Actor and wait for it to finish

@@ -1,0 +1,11 @@
+2025-10-07 18:22:50,064 | INFO | ============================================
+2025-10-07 18:22:50,064 | INFO | ⚙️  Starting Master Scraper Pipeline
+2025-10-07 18:22:50,064 | INFO | ============================================
+2025-10-07 18:22:50,064 | INFO | 🚀 Starting: scrappers.apifyscrapper.LinkedinScrapperApify
+2025-10-07 18:22:50,064 | ERROR | ❌ Error running scrappers.apifyscrapper.LinkedinScrapperApify: No module named 'scrappers'
+2025-10-07 18:22:53,069 | INFO | 🚀 Starting: scrappers.apifyscrapper.ApifyCompanyScrapper
+2025-10-07 18:22:53,070 | ERROR | ❌ Error running scrappers.apifyscrapper.ApifyCompanyScrapper: No module named 'scrappers'
+2025-10-07 18:22:56,075 | INFO | 🚀 Starting: scrappers.customscrapper.YahooFinanceScrapper
+2025-10-07 18:22:56,077 | ERROR | ❌ Error running scrappers.customscrapper.YahooFinanceScrapper: No module named 'scrappers'
+2025-10-07 18:22:59,080 | INFO | 🚀 Starting: scrappers.ProspeoScrapper.Pmobile
+2025-10-07 18:22:59,081 | ERROR | ❌ Error running scrappers.ProspeoScrapper.Pmobile: No module named 'scrappers'

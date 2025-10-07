@@ -1,0 +1,7 @@
+apify-client
+requests
+pymongo
+python-dotenv
+yfinance
+certifi
+pandas
